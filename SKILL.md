@@ -1,6 +1,6 @@
 ---
 name: spec-to-readable-html
-description: Markdown やテキスト仕様書を、要約・構造再編・図表・チャート・ソーストレーサビリティ付きの読みやすい HTML ドキュメントに変換します。仕様書、要件定義、API 仕様、プロダクト仕様、設計ドキュメント、技術文書を可読性の高い HTML に変換したい場合や、要約・再構成・ダイアグラム・グラフ・画像・ビジュアル補助が必要な場合に使用してください。
+description: Transform Markdown or text specifications into human-readable HTML documents with summaries, reordered structure, visual explanations, diagrams, charts, and traceability to the source. Use when asked to convert a spec, requirements document, API spec, product spec, design doc, or technical document into readable HTML, especially when the user wants summarization, restructuring, diagrams, graphs, images, or visual aids rather than a literal Markdown-to-HTML conversion.
 argument-hint: "[lang]"
 arguments: lang
 ---
