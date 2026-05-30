@@ -986,6 +986,8 @@ graph LR
     var scale = 1, panX = 0, panY = 0, fitScale = 1;
     var dragging = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
     var MIN_SCALE = 0.1, MAX_SCALE = 5, STEP = 0.25;
+    var WHEEL_ZOOM_SENSITIVITY = 0.005;
+    var isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || '');
 
     function applyTransform() {
       content.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + scale + ')';
@@ -1019,14 +1021,56 @@ graph LR
       });
     }
 
-    function zoomBy(delta, cx, cy) {
+    function clampScale(value) {
+      return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
+    }
+
+    function zoomTo(nextScale, cx, cy) {
       var prev = scale;
-      scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + delta));
-      if (cx !== undefined && cy !== undefined) {
+      scale = clampScale(nextScale);
+      if (cx !== undefined && cy !== undefined && prev !== scale) {
         var ratio = scale / prev;
         panX = cx - ratio * (cx - panX);
         panY = cy - ratio * (cy - panY);
       }
+      applyTransform();
+    }
+
+    function zoomBy(delta, cx, cy) {
+      zoomTo(scale + delta, cx, cy);
+    }
+
+    function normalizeWheel(e) {
+      var unit = 1;
+      if (e.deltaMode === 1) unit = 16;
+      else if (e.deltaMode === 2) unit = viewport.clientHeight;
+      return { dx: e.deltaX * unit, dy: e.deltaY * unit };
+    }
+
+    function isLikelyTrackpadPinch(e, wheel) {
+      return isMac && e.ctrlKey && !e.metaKey && e.deltaMode === 0 &&
+        Math.abs(wheel.delta) < 80 && Math.abs(wheel.dx) < 8;
+    }
+
+    function shouldZoomOnWheel(e, wheel) {
+      if (isMac ? e.metaKey : e.ctrlKey) return true;
+      return isLikelyTrackpadPinch(e, wheel);
+    }
+
+    function zoomByWheel(wheel, cx, cy) {
+      var factor = Math.exp(-wheel.delta * WHEEL_ZOOM_SENSITIVITY);
+      zoomTo(scale * factor, cx, cy);
+    }
+
+    function panByWheel(e, wheel) {
+      var dx = wheel.dx;
+      var dy = wheel.dy;
+      if (e.shiftKey && Math.abs(dx) < Math.abs(dy)) {
+        dx = dy;
+        dy = 0;
+      }
+      panX -= dx;
+      panY -= dy;
       applyTransform();
     }
 
@@ -1069,15 +1113,39 @@ graph LR
     btnOut.addEventListener('click', function() { zoomBy(-STEP); });
     btnReset.addEventListener('click', fitToView);
 
-    // Mouse wheel zoom (centered on cursor)
+    // Wheel: Cmd/Ctrl + wheel zooms. Plain wheel pans the enlarged diagram.
+    // Trackpad pinch is supported when the browser exposes it as a wheel gesture.
     viewport.addEventListener('wheel', function(e) {
       e.preventDefault();
+      var wheel = normalizeWheel(e);
+      wheel.delta = wheel.dy || wheel.dx;
+
       var rect = viewport.getBoundingClientRect();
       var cx = e.clientX - rect.left;
       var cy = e.clientY - rect.top;
-      var delta = e.deltaY < 0 ? STEP : -STEP;
-      zoomBy(delta, cx, cy);
+
+      if (shouldZoomOnWheel(e, wheel)) {
+        zoomByWheel(wheel, cx, cy);
+      } else {
+        panByWheel(e, wheel);
+      }
     }, { passive: false });
+
+    // Safari/WebKit trackpad pinch support.
+    if ('ongesturestart' in window) {
+      var gestureStartScale = 1;
+      viewport.addEventListener('gesturestart', function(e) {
+        e.preventDefault();
+        gestureStartScale = scale;
+      });
+      viewport.addEventListener('gesturechange', function(e) {
+        e.preventDefault();
+        var rect = viewport.getBoundingClientRect();
+        var cx = e.clientX ? e.clientX - rect.left : rect.width / 2;
+        var cy = e.clientY ? e.clientY - rect.top : rect.height / 2;
+        zoomTo(gestureStartScale * e.scale, cx, cy);
+      });
+    }
 
     // Mouse drag to pan
     viewport.addEventListener('mousedown', function(e) {
