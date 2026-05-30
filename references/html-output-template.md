@@ -55,7 +55,7 @@ Wrap Mermaid blocks in `<figure class="diagram-container"><div class="mermaid">.
 
 Supported Mermaid types: `graph`, `sequenceDiagram`, `stateDiagram-v2`, `erDiagram`, `gantt`, `pie`, `flowchart`.
 
-If the output must be fully self-contained (no CDN), replace Mermaid blocks with inline `<svg>` elements.
+The base template loads Mermaid from a CDN. If the output must be fully self-contained or usable offline, replace Mermaid blocks with inline `<svg>` elements instead of including the CDN script.
 
 ### Glossary `.glossary`
 
@@ -113,9 +113,9 @@ Stacked horizontal bars for proportional data (e.g., test pyramid, cost breakdow
 ## Rules
 
 - Copy the full `<style>` block from `template.html` into every generated file. Do not subset it.
-- Replace all `{{PLACEHOLDER}}` tokens with real content derived from the source.
+- Replace all `{{PLACEHOLDER}}` tokens with real content derived from the source, escaping source-derived text by default.
 - Use semantic HTML elements (`section`, `figure`, `figcaption`, `table`, `nav`, `code`).
 - Number figures sequentially: Fig 1, Fig 2, ... (or 図1, 図2, ... for `--lang=ja`).
 - Every diagram must have a `<figcaption>`.
 - The traceability table in the Appendix must map each output section to its source section and indicate whether content was Preserved, Summarized, or Inferred.
-- Mermaid CDN script goes at the bottom of `<body>`. Note the external dependency in the footer or a comment if it matters for the use case.
+- Mermaid CDN script goes at the bottom of `<body>` when Mermaid blocks are used. Note this external dependency in the footer or a comment. For fully self-contained/offline output, use inline SVG and omit the Mermaid CDN script.
