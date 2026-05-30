@@ -289,9 +289,15 @@ body {
   padding: 1.5rem;
   transition: box-shadow 0.2s, border-color 0.2s;
 }
-.diagram-container:hover .mermaid {
+.diagram-container:hover .mermaid,
+.diagram-container:focus-visible .mermaid {
   border-color: var(--color-primary);
   box-shadow: var(--shadow-md);
+}
+.diagram-container:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: var(--radius);
 }
 .diagram-container::after {
   content: "Click to enlarge";
@@ -302,7 +308,8 @@ body {
   opacity: 0;
   transition: opacity 0.2s;
 }
-.diagram-container:hover::after { opacity: 1; }
+.diagram-container:hover::after,
+.diagram-container:focus-visible::after { opacity: 1; }
 .diagram-container figcaption {
   font-size: 0.8125rem;
   color: var(--color-text-muted);
@@ -946,7 +953,7 @@ graph LR
 </footer>
 
 <!-- Lightbox modal for diagrams (Pan & Zoom) -->
-<div class="diagram-modal" id="diagramModal" role="dialog" aria-modal="true" aria-label="Enlarged diagram">
+<div class="diagram-modal" id="diagramModal" role="dialog" aria-modal="true" aria-label="Enlarged diagram" tabindex="-1">
   <div class="diagram-modal-toolbar">
     <div class="diagram-modal-toolbar-group">
       <button class="diagram-modal-btn" id="zoomOut" aria-label="Zoom out">&minus;</button>
@@ -985,6 +992,7 @@ graph LR
 
     var scale = 1, panX = 0, panY = 0, fitScale = 1;
     var dragging = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
+    var lastFocusedDiagram = null;
     var MIN_SCALE = 0.1, MAX_SCALE = 5, STEP = 0.25;
     var WHEEL_ZOOM_SENSITIVITY = 0.005;
     var isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || '');
@@ -1074,6 +1082,22 @@ graph LR
       applyTransform();
     }
 
+    function focusElement(el) {
+      if (!el || typeof el.focus !== 'function') return;
+      try { el.focus({ preventScroll: true }); }
+      catch (err) { el.focus(); }
+    }
+
+    function getDiagramLabel(figure) {
+      var figcap = figure.querySelector('figcaption');
+      var label = figcap && figcap.textContent ? figcap.textContent.trim() : '';
+      return label ? 'Open enlarged diagram: ' + label : 'Open enlarged diagram';
+    }
+
+    function isInteractiveTarget(target) {
+      return target && target.closest && target.closest('a, button, input, textarea, select, summary');
+    }
+
     function openModal(figure) {
       var svg = figure.querySelector('svg');
       var mermaidDiv = figure.querySelector('.mermaid');
@@ -1089,21 +1113,37 @@ graph LR
       }
 
       caption.textContent = figcap ? figcap.textContent : '';
+      lastFocusedDiagram = figure;
       modal.classList.add('is-open');
       document.body.style.overflow = 'hidden';
+      focusElement(modal);
       fitToView();
     }
 
     function closeModal() {
       modal.classList.remove('is-open');
       document.body.style.overflow = '';
+      focusElement(lastFocusedDiagram);
     }
 
-    // Open from diagram click
+    // Open from diagram click or keyboard activation
     document.querySelectorAll('.diagram-container').forEach(function(fig) {
+      if (!fig.hasAttribute('tabindex')) fig.setAttribute('tabindex', '0');
+      if (!fig.hasAttribute('role')) fig.setAttribute('role', 'button');
+      if (!fig.hasAttribute('aria-haspopup')) fig.setAttribute('aria-haspopup', 'dialog');
+      if (!fig.hasAttribute('aria-controls')) fig.setAttribute('aria-controls', 'diagramModal');
+      if (!fig.hasAttribute('aria-label')) fig.setAttribute('aria-label', getDiagramLabel(fig));
+
       fig.addEventListener('click', function(e) {
-        if (e.target.closest('a')) return;
+        if (isInteractiveTarget(e.target)) return;
         openModal(fig);
+      });
+      fig.addEventListener('keydown', function(e) {
+        if (isInteractiveTarget(e.target)) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openModal(fig);
+        }
       });
     });
 
